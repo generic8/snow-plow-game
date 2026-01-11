@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 /* =========================
    BASIC SETUP
@@ -21,6 +22,46 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 document.body.appendChild(renderer.domElement);
+
+/* =========================
+   LOAD 3D JEEP MODEL
+========================= */
+let jeepModel = null;
+let jeepLoaded = false;
+const gltfLoader = new GLTFLoader();
+
+const loadingDiv = document.createElement("div");
+loadingDiv.style.position = "fixed";
+loadingDiv.style.top = "50%";
+loadingDiv.style.left = "50%";
+loadingDiv.style.transform = "translate(-50%, -50%)";
+loadingDiv.style.color = "white";
+loadingDiv.style.fontSize = "20px";
+loadingDiv.style.fontFamily = "Arial";
+loadingDiv.style.background = "rgba(0,0,0,0.8)";
+loadingDiv.style.padding = "20px 30px";
+loadingDiv.style.borderRadius = "10px";
+loadingDiv.style.zIndex = "999999";
+loadingDiv.textContent = "Loading 3D Snow Plow Jeep...";
+document.body.appendChild(loadingDiv);
+
+gltfLoader.load(
+  './snow_plow_jeep.glb',
+  (gltf) => {
+    jeepModel = gltf.scene;
+    jeepModel.scale.set(0.8, 0.8, 0.8);
+    jeepModel.rotation.y = Math.PI;
+    jeepLoaded = true;
+    loadingDiv.textContent = "✅ Jeep Loaded!";
+    setTimeout(() => loadingDiv.remove(), 1500);
+  },
+  undefined,
+  (error) => {
+    console.error("Error loading Jeep:", error);
+    loadingDiv.textContent = "❌ Failed to load Jeep";
+    setTimeout(() => loadingDiv.remove(), 3000);
+  }
+);
 
 /* =========================
    UI (Start Screen + HUD + Minimap + Win Screen)
@@ -47,9 +88,13 @@ startScreen.innerHTML = `
         <div style="font-weight:bold;">Pickup</div>
         <div style="font-size:12px; opacity:0.8;">Fast • Small blade</div>
       </button>
-      <button id="vehHeavy" style="padding:10px; cursor:pointer; border-radius:10px;">
-        <div style="font-weight:bold;">Heavy Plow</div>
-        <div style="font-size:12px; opacity:0.8;">Slower • Wide blade</div>
+ <button id="vehHeavy" style="padding:10px; cursor:pointer; border-radius:10px;">
+        <div style="font-weight:bold; font-size:13px;">Heavy Plow</div>
+        <div style="font-size:11px; opacity:0.8;">Slower • Wide blade</div>
+      </button>
+      <button id="vehJeep" style="padding:10px; cursor:pointer; border-radius:10px; border:2px solid #4fc3f7;">
+        <div style="font-weight:bold; font-size:13px;">🚙 Snow Jeep</div>
+        <div style="font-size:11px; opacity:0.8;">Balanced • 3D!</div>
       </button>
     </div>
 
@@ -65,6 +110,7 @@ document.body.appendChild(startScreen);
 const startBtn = document.getElementById("startBtn");
 const vehPickup = document.getElementById("vehPickup");
 const vehHeavy = document.getElementById("vehHeavy");
+const vehJeep = document.getElementById("vehJeep");
 
 // --- HUD ---
 const hud = document.createElement("div");
@@ -141,20 +187,27 @@ let missionComplete = false;
 targetLineEl.textContent = `Target: ${missionTargetPct}%`;
 
 const VEHICLES = {
-  pickup: { name: "Pickup", maxSpeed: 0.32, turnSpeed: 0.04, clearRadius: 24, bodyColor: 0x333333 },
-  heavy:  { name: "Heavy",  maxSpeed: 0.22, turnSpeed: 0.028, clearRadius: 40, bodyColor: 0x222244 }
+  pickup: { name: "Pickup", maxSpeed: 0.32, turnSpeed: 0.04, clearRadius: 24, bodyColor: 0x333333, use3D: false },
+  heavy: { name: "Heavy", maxSpeed: 0.22, turnSpeed: 0.028, clearRadius: 40, bodyColor: 0x222244, use3D: false },
+  jeep: { name: "Snow Jeep", maxSpeed: 0.28, turnSpeed: 0.035, clearRadius: 32, bodyColor: 0x2a4a6a, use3D: true }
 };
 
 let selectedVehicle = null;
+let selectedVehicleKey = null;
 function setSelected(key) {
+  selectedVehicleKey = key;
   selectedVehicle = VEHICLES[key];
   vehPickup.style.outline = key === "pickup" ? "2px solid #fff" : "none";
-  vehHeavy.style.outline  = key === "heavy" ? "2px solid #fff" : "none";
+  vehHeavy.style.outline = key === "heavy" ? "2px solid #fff" : "none";
+  vehJeep.style.outline = key === "jeep" ? "2px solid #fff" : "none";
   startBtn.disabled = false;
   startBtn.textContent = `Start with ${selectedVehicle.name}`;
 }
+
 vehPickup.addEventListener("click", () => setSelected("pickup"));
 vehHeavy.addEventListener("click", () => setSelected("heavy"));
+vehJeep.addEventListener("click", () => setSelected("jeep"));
+
 
 /* =========================
    WORLD / CITY SETTINGS
@@ -1139,9 +1192,28 @@ startBtn.addEventListener("click", () => {
   missionComplete = false;
   missionTargetPct = 20;
   targetLineEl.textContent = `Target: ${missionTargetPct}%`;
-
   resetSnow();
-
+  
+  // Handle 3D Jeep model
+  if (selectedVehicleKey === "jeep" && jeepLoaded && jeepModel) {
+    body.visible = false;
+    blade.visible = false;
+    if (!vehicle.userData.jeepAdded) {
+      const jeepClone = jeepModel.clone();
+      jeepClone.position.set(0, -0.3, 0);
+      vehicle.add(jeepClone);
+      vehicle.userData.jeepAdded = true;
+      vehicle.userData.jeepMesh = jeepClone;
+    }
+    vehicle.userData.jeepMesh.visible = true;
+  } else {
+    body.visible = true;
+    blade.visible = true;
+    if (vehicle.userData.jeepMesh) {
+      vehicle.userData.jeepMesh.visible = false;
+    }
+  }
+  
   gameStarted = true;
   startScreen.style.display = "none";
   hud.style.display = "block";
@@ -1167,6 +1239,7 @@ playAgainBtn.addEventListener("click", () => {
   startBtn.textContent = "Select a vehicle to start";
   vehPickup.style.outline = "none";
   vehHeavy.style.outline = "none";
+  vehJeep.style.outline = "none";
 });
 
 /* =========================
