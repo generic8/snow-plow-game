@@ -50,7 +50,7 @@ gltfLoader.load(
   (gltf) => {
     jeepModel = gltf.scene;
     jeepModel.scale.set(0.8, 0.8, 0.8);
-    jeepModel.rotation.y = -Math.PI;
+    jeepModel.rotation.y = Math.PI / 2;
     jeepLoaded = true;
     loadingDiv.textContent = "✅ Jeep Loaded!";
     setTimeout(() => loadingDiv.remove(), 1500);
