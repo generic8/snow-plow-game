@@ -1200,7 +1200,8 @@ startBtn.addEventListener("click", () => {
     blade.visible = false;
     if (!vehicle.userData.jeepAdded) {
       const jeepClone = jeepModel.clone();
-      jeepClone.position.set(0, -0.3, 0);
+      jeepClone.position.set(0, 0.5, 0);
+      jeepClone.rotation.y = Math.PI;  // Rotate 180 degrees
       vehicle.add(jeepClone);
       vehicle.userData.jeepAdded = true;
       vehicle.userData.jeepMesh = jeepClone;
